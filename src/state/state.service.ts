@@ -6,7 +6,8 @@ import { JwtService } from '@nestjs/jwt';
 import { Observable } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { map } from 'rxjs/operators';
-
+import { AddStateDto, LoginDto } from 'src/middleware/signupdto';
+import { HttpStatusCodes, ErrorMessages } from '../middleware/errorMessage';
 @Injectable()
 export class StateService {
   private readonly blacklist = new Set<string>();
@@ -19,35 +20,35 @@ export class StateService {
 
   // StateService
 async insertState(
-  name: string,
-  email: string,
-  password: string,
+  createUserDto: AddStateDto
 ) {
   try {
+    const { name, email, password } = createUserDto;
     const existingUser = await this.stateModel.findOne({ email }).exec();
     if (existingUser) {
-      return { status: 400, message: 'User with this email already exists', error: null };
+      return { status: HttpStatusCodes.BAD_REQUEST, message: ErrorMessages.USER_EXISTS, error: null };
     }
 
     if (password.length < 6) {
-      return { status: 400, message: 'Password must be at least 6 characters long', error: null };
+      return { status: HttpStatusCodes.BAD_REQUEST, message: ErrorMessages.SHORT_PASSWORD, error: null };
     }
 
     const newState = new this.stateModel({
       name,
-      email,
-      password,
+        email,
+        password,
     });
     const result = await newState.save();
-    return { status: 200, message: 'State added successfully', data: { id: result.id } };
+    return { status: HttpStatusCodes.OK, message: 'State added successfully', data: { id: result.id } };
   } catch (error) {
-    return { status: 500, message: 'Internal server error', error: error.message };
+    return { status: HttpStatusCodes.INTERNAL_SERVER_ERROR, message: ErrorMessages.INTERNAL_SERVER_ERROR, error: error.message };
   }
 }
 
 // StateService
-async validateUser(email: string, password: string) {
+async validateUser(createloginDto:LoginDto) {
   try {
+    const { email, password } = createloginDto;
     const user = await this.stateModel.findOne({ email }).exec();
 
     if (user && user.password === password) {
@@ -56,7 +57,7 @@ async validateUser(email: string, password: string) {
       const accessToken = this.jwtService.sign(payload);
 
       return {
-        status: 200,
+        status: HttpStatusCodes.OK,
         message: 'Login successful',
         data: {
           accessToken,
@@ -64,13 +65,13 @@ async validateUser(email: string, password: string) {
       };
     } else {
       return {
-        status: 401,
-        message: 'Invalid credentials',
+        status: HttpStatusCodes.UNAUTHORIZED,
+        message: ErrorMessages.INVALID_CREDENTIALS,
         data: null,
       };
     }
   } catch (error) {
-    return { status: 500, message: 'Internal server error', error: error.message };
+    return { status: HttpStatusCodes.INTERNAL_SERVER_ERROR, message: ErrorMessages.INTERNAL_SERVER_ERROR, error: error.message };
   }
 }
 
@@ -93,12 +94,12 @@ getRandomJoke(): Observable<any> {
 async logout(token: string): Promise<{ status: number; message: string }> {
   try {
     if (this.blacklist.has(token)) {
-      return { status: 401, message: 'Token has already been invalidated' };
+      return { status: HttpStatusCodes.UNAUTHORIZED, message: ErrorMessages.TOKEN_ALREADY_INVALIDATED };
     }
     this.blacklist.add(token);
-    return { status: 200, message: 'Logout successful' };
+    return { status: HttpStatusCodes.OK, message: 'Logout successful' };
   } catch (error) {
-    return { status: 500, message: 'Internal server error' };
+    return { status: HttpStatusCodes.INTERNAL_SERVER_ERROR, message: ErrorMessages.INTERNAL_SERVER_ERROR };
   }
 }
 async getProfile(token: string): Promise<{ status: number; message: string; data?: any }> {
@@ -106,17 +107,17 @@ async getProfile(token: string): Promise<{ status: number; message: string; data
     const decodedToken = this.jwtService.decode(token) as { email: string; sub: string };
     
     if (!decodedToken || !decodedToken.email || !decodedToken.sub) {
-      return { status: 401, message: 'Invalid token' };
+      return { status: HttpStatusCodes.UNAUTHORIZED, message: ErrorMessages.INVALID_TOKEN };
     }
 
     const user = await this.stateModel.findById(decodedToken.sub).exec();
 
     if (!user) {
-      return { status: 404, message: 'User not found' };
+      return { status: HttpStatusCodes.NOT_FOUND, message: ErrorMessages.USER_NOT_FOUND };
     }
 
     return {
-      status: 200,
+      status: HttpStatusCodes.OK,
       message: 'Profile retrieved successfully',
       data: {
         id: user.id,
@@ -125,7 +126,7 @@ async getProfile(token: string): Promise<{ status: number; message: string; data
       },
     };
   } catch (error) {
-    return { status: 500, message: 'Internal server error' };
+    return { status: HttpStatusCodes.INTERNAL_SERVER_ERROR, message: ErrorMessages.INTERNAL_SERVER_ERROR };
   }
 }
 }

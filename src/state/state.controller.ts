@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { StateService } from './state.service';
 import { Observable } from 'rxjs';
+import { AddStateDto, LoginDto } from "../middleware/signupdto"
 
 @Controller('state')
 export class StateController {
@@ -8,19 +9,16 @@ export class StateController {
 
   @Post('add')
   async addState(
-    @Body('name') name: string,
-    @Body('email') email: string,
-    @Body('password') password: string,
+    @Body() createUserDto: AddStateDto
   ) {
-    const result = await this.stateService.insertState(name, email, password);
+    const result = await this.stateService.insertState(createUserDto);
     return result;
   }
   @Post('login')
   async login(
-    @Body('email') email: string,
-    @Body('password') password: string,
+    @Body() createloginDto:LoginDto
   ) {
-    const result = await this.stateService.validateUser(email, password);
+    const result = await this.stateService.validateUser(createloginDto);
     return result;
   }
 

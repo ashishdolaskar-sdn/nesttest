@@ -51,7 +51,6 @@ async validateUser(email: string, password: string) {
     const user = await this.stateModel.findOne({ email }).exec();
 
     if (user && user.password === password) {
-      // You may want to replace the password comparison with a secure method like bcrypt
       const payload = { email: user.email, sub: user.id };
       const accessToken = this.jwtService.sign(payload);
 
